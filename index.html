@@ -21,6 +21,13 @@
             theme === 'dark' ||
             (theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)
           document.documentElement.classList.toggle('dark', dark)
+          if (theme === 'dark' || theme === 'light') {
+            // A forced theme overrides both media-scoped theme-color metas.
+            const color = theme === 'dark' ? '#09090b' : '#fafafa'
+            for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
+              meta.content = color
+            }
+          }
         } catch {
           // No localStorage (e.g. blocked storage) — leave the light default.
         }

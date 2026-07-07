@@ -39,11 +39,12 @@ export function PencilIcon({ className }: IconProps) {
   )
 }
 
-export function GearIcon({ className }: IconProps) {
+export function SlidersIcon({ className }: IconProps) {
   return (
     <svg {...base(className)}>
-      <circle cx="8" cy="8" r="2.25" />
-      <path d="M8 1.75v2M8 12.25v2M13.4 4.9l-1.7 1M4.3 10.1l-1.7 1M2.6 4.9l1.7 1M11.7 10.1l1.7 1" />
+      <path d="M2.5 4.5h5M10.5 4.5h3M2.5 11.5h3M8.5 11.5h5" />
+      <circle cx="9" cy="4.5" r="1.5" />
+      <circle cx="7" cy="11.5" r="1.5" />
     </svg>
   )
 }

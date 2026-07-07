@@ -4,20 +4,38 @@ import { EmptyState } from './components/EmptyState'
 import { HabitCard } from './components/HabitCard'
 import { HabitDialog, type HabitDialogState } from './components/HabitDialog'
 import { Header } from './components/Header'
-import { getHabits, getSetting } from './data/repo'
+import { SettingsDialog } from './components/SettingsDialog'
+import { getHabits, getSetting, getYearBounds } from './data/repo'
+import { useTheme } from './hooks/useTheme'
 import { todayISO, yearOf } from './lib/dates'
 
 export default function App() {
   const today = todayISO()
-  const [year] = useState(() => yearOf(today))
+  const currentYear = yearOf(today)
+  const [year, setYear] = useState(currentYear)
   const [dialog, setDialog] = useState<HabitDialogState>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const { theme, isDark, setTheme } = useTheme()
 
   const habits = useLiveQuery(getHabits)
   const weekStart = useLiveQuery(() => getSetting('weekStart')) ?? 'mon'
+  const bounds = useLiveQuery(getYearBounds)
+
+  const minYear = Math.min(bounds?.minYear ?? currentYear, currentYear)
+  const maxYear = Math.max(bounds?.maxYear ?? currentYear, currentYear)
 
   return (
     <div className="min-h-dvh bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
-      <Header onNewHabit={() => setDialog({ mode: 'create' })} />
+      <Header
+        year={year}
+        minYear={minYear}
+        maxYear={maxYear}
+        onYearChange={setYear}
+        isDark={isDark}
+        onToggleTheme={() => setTheme(isDark ? 'light' : 'dark')}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onNewHabit={() => setDialog({ mode: 'create' })}
+      />
 
       <main className="mx-auto max-w-4xl px-4 py-6">
         {habits !== undefined &&
@@ -40,6 +58,13 @@ export default function App() {
       </main>
 
       <HabitDialog state={dialog} onClose={() => setDialog(null)} />
+      <SettingsDialog
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        theme={theme}
+        onThemeChange={setTheme}
+        weekStart={weekStart}
+      />
     </div>
   )
 }
