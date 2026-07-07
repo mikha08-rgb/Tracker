@@ -6,9 +6,7 @@
 One GitHub-style heatmap per habit, a journal note for any day,
 and your data never leaves your browser.
 
-<!-- After publishing to GitHub, uncomment and fix the badge URL:
-[![CI](https://github.com/YOUR_USER/tessera/actions/workflows/ci.yml/badge.svg)](https://github.com/YOUR_USER/tessera/actions/workflows/ci.yml)
--->
+[![CI](https://github.com/mikha08-rgb/Tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/mikha08-rgb/Tracker/actions/workflows/ci.yml)
 
 </div>
 
