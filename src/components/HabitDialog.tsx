@@ -73,6 +73,9 @@ function HabitForm({ habit, onClose }: { habit: Habit | null; onClose: () => voi
       await updateHabit(habit.id, fields)
     } else {
       await createHabit(fields)
+      // Best moment to ask for durable storage: a user gesture, right as
+      // the first real data appears. No-op where unsupported or denied.
+      void navigator.storage?.persist?.().catch(() => {})
     }
     onClose()
   }
