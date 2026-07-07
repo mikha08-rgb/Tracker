@@ -1,11 +1,12 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useMemo } from 'react'
-import { getEntriesForHabit, getEntriesForYear } from '../data/repo'
+import { useMemo, useState } from 'react'
+import { adjustCount, getEntriesForHabit, getEntriesForYear } from '../data/repo'
 import type { Habit } from '../data/types'
 import type { ISODate, WeekStart } from '../lib/dates'
 import { buildYearGrid, computeThresholds } from '../lib/heatmap'
+import { DayPopover } from './DayPopover'
 import { Heatmap, type DayInfo } from './Heatmap'
-import { PencilIcon } from './icons'
+import { PencilIcon, PlusIcon } from './icons'
 
 interface HabitCardProps {
   habit: Habit
@@ -16,6 +17,7 @@ interface HabitCardProps {
 }
 
 export function HabitCard({ habit, year, weekStart, today, onEdit }: HabitCardProps) {
+  const [selected, setSelected] = useState<{ date: ISODate; anchor: HTMLElement } | null>(null)
   const entries = useLiveQuery(() => getEntriesForYear(habit.id, year), [habit.id, year])
   const history = useLiveQuery(() => getEntriesForHabit(habit.id), [habit.id])
 
@@ -64,6 +66,16 @@ export function HabitCard({ habit, year, weekStart, today, onEdit }: HabitCardPr
         >
           <PencilIcon />
         </button>
+        <button
+          type="button"
+          onClick={() => void adjustCount(habit.id, today, 1)}
+          aria-label={`Log ${habit.name} today`}
+          title="Log today"
+          className="flex size-8 items-center justify-center rounded-full text-white shadow-sm transition-transform hover:brightness-110 active:scale-90"
+          style={{ backgroundColor: habit.color }}
+        >
+          <PlusIcon />
+        </button>
       </div>
 
       <Heatmap
@@ -73,7 +85,17 @@ export function HabitCard({ habit, year, weekStart, today, onEdit }: HabitCardPr
         targetPerDay={habit.targetPerDay}
         thresholds={thresholds}
         today={today}
+        onSelectDay={(date, anchor) => setSelected({ date, anchor })}
       />
+
+      {selected && (
+        <DayPopover
+          habit={habit}
+          date={selected.date}
+          anchor={selected.anchor}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </section>
   )
 }

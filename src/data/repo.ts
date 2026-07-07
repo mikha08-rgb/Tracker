@@ -87,6 +87,10 @@ export function getHabit(id: string): Promise<Habit | undefined> {
   return db.habits.get(id)
 }
 
+export function getEntry(habitId: string, date: ISODate): Promise<DayEntry | undefined> {
+  return db.entries.get([habitId, date])
+}
+
 export function getEntriesForYear(habitId: string, year: number): Promise<DayEntry[]> {
   return db.entries
     .where('[habitId+date]')
