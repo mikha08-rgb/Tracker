@@ -167,7 +167,7 @@ function SettingsBody({
           />
         </div>
       </SettingRow>
-      <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
         {lastExportAt
           ? `Last export: ${relativeDays(lastExportAt)}`
           : 'No export yet — backups are plain JSON files.'}
@@ -212,7 +212,7 @@ function SettingsBody({
             <button
               type="button"
               onClick={() => void confirmImport()}
-              className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+              className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
             >
               Replace my data
             </button>
@@ -222,7 +222,7 @@ function SettingsBody({
 
       <SettingRow label="Storage">
         {storage === null ? (
-          <span className="text-xs text-zinc-400">unknown</span>
+          <span className="text-xs text-zinc-500 dark:text-zinc-400">unknown</span>
         ) : storage.persisted ? (
           <span className="text-xs text-zinc-500 dark:text-zinc-400">
             persistent{storage.usage !== null ? ` · ${formatBytes(storage.usage)}` : ''}
@@ -248,7 +248,10 @@ function SettingsBody({
         {confirmingWipe ? (
           <>
             <span className="text-sm text-zinc-500 dark:text-zinc-400">
-              Erase every habit and log?
+              Erase every habit and log?{' '}
+              {lastExportAt
+                ? `Last export: ${relativeDays(lastExportAt)}.`
+                : 'You’ve never exported a backup.'}
             </span>
             <div className="grow" />
             <button

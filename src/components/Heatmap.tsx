@@ -24,6 +24,15 @@ const GUTTER = 32
 
 const EMPTY: DayInfo = { count: 0, hasNote: false }
 
+/** Guarded for test DOMs that don't implement the selector. */
+function isFocusVisible(el: Element): boolean {
+  try {
+    return el.matches(':focus-visible')
+  } catch {
+    return false
+  }
+}
+
 const A_SUNDAY: ISODate = '2026-07-05'
 
 function rowLabels(weekStart: 'mon' | 'sun'): (string | null)[] {
@@ -62,9 +71,12 @@ export const Heatmap = memo(function Heatmap({
     el.scrollLeft = Math.max(0, GUTTER + col * PITCH + CELL - el.clientWidth + 16)
   }, [grid, today])
 
-  function showTooltip(e: React.MouseEvent) {
+  // On focus events the tooltip only shows for keyboard focus —
+  // otherwise closing the popover (which restores focus to the cell)
+  // would leave a stray tooltip behind on touch screens.
+  function showTooltip(e: React.SyntheticEvent) {
     const cell = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-date]')
-    if (!cell) {
+    if (!cell || (e.type === 'focus' && !isFocusVisible(cell))) {
       setTooltip(null)
       return
     }
@@ -104,6 +116,8 @@ export const Heatmap = memo(function Heatmap({
         className="relative flex w-max"
         onMouseOver={showTooltip}
         onMouseLeave={() => setTooltip(null)}
+        onFocus={showTooltip}
+        onBlur={() => setTooltip(null)}
       >
         <div
           className="sticky left-0 z-10 bg-white dark:bg-zinc-900"
@@ -112,7 +126,7 @@ export const Heatmap = memo(function Heatmap({
           <div className="h-4" />
           <div className="grid" style={{ gridTemplateRows: `repeat(7, ${CELL}px)`, rowGap: GAP }}>
             {rowLabels(grid.weekStart).map((label, row) => (
-              <span key={row} className="text-[9px] leading-3 text-zinc-400 dark:text-zinc-500">
+              <span key={row} className="text-[10px] leading-3 text-zinc-500 dark:text-zinc-400">
                 {label}
               </span>
             ))}
@@ -124,7 +138,7 @@ export const Heatmap = memo(function Heatmap({
             {grid.monthLabels.map((m) => (
               <span
                 key={m.weekIndex}
-                className="absolute top-0 text-[10px] leading-3 text-zinc-400 dark:text-zinc-500"
+                className="absolute top-0 text-[10px] leading-3 text-zinc-500 dark:text-zinc-400"
                 style={{ left: m.weekIndex * PITCH }}
               >
                 {m.label}
@@ -160,8 +174,11 @@ export const Heatmap = memo(function Heatmap({
                     aria-label={`${formatDate(date)}: ${
                       info.count === 0 ? 'nothing logged' : `logged ${info.count}×`
                     }${info.hasNote ? ', has note' : ''}`}
+                    // The ::after overlay widens each cell's hit area to the
+                    // full 15px pitch, so the 3px gaps between cells aren't
+                    // dead zones under a fingertip.
                     className={[
-                      'flex rounded-[2px] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-500',
+                      'relative flex rounded-[2px] after:absolute after:-inset-[1.5px] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-500',
                       level === 0 ? 'bg-zinc-200/70 dark:bg-zinc-800' : '',
                       isFuture ? 'opacity-30' : '',
                       isToday

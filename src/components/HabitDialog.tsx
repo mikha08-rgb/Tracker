@@ -8,10 +8,12 @@ export type HabitDialogState = { mode: 'create' } | { mode: 'edit'; habit: Habit
 
 interface HabitDialogProps {
   state: HabitDialogState
+  /** Preselected color for a new habit (first swatch no other habit uses). */
+  defaultColor: string
   onClose: () => void
 }
 
-export function HabitDialog({ state, onClose }: HabitDialogProps) {
+export function HabitDialog({ state, defaultColor, onClose }: HabitDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const open = state !== null
 
@@ -35,6 +37,7 @@ export function HabitDialog({ state, onClose }: HabitDialogProps) {
         <HabitForm
           key={state.mode === 'edit' ? state.habit.id : 'create'}
           habit={state.mode === 'edit' ? state.habit : null}
+          defaultColor={defaultColor}
           onClose={onClose}
         />
       )}
@@ -47,10 +50,18 @@ const inputClass =
 
 const labelClass = 'mb-1.5 block text-xs font-medium text-zinc-500 dark:text-zinc-400'
 
-function HabitForm({ habit, onClose }: { habit: Habit | null; onClose: () => void }) {
+function HabitForm({
+  habit,
+  defaultColor,
+  onClose,
+}: {
+  habit: Habit | null
+  defaultColor: string
+  onClose: () => void
+}) {
   const [name, setName] = useState(habit?.name ?? '')
   const [emoji, setEmoji] = useState(habit?.emoji ?? '')
-  const [color, setColor] = useState(habit?.color ?? '#22c55e')
+  const [color, setColor] = useState(habit?.color ?? defaultColor)
   const [target, setTarget] = useState(habit?.targetPerDay?.toString() ?? '')
   const [confirmingDelete, setConfirmingDelete] = useState(false)
 
@@ -138,7 +149,7 @@ function HabitForm({ habit, onClose }: { habit: Habit | null; onClose: () => voi
           inputMode="numeric"
           placeholder="auto"
         />
-        <p className="mt-1.5 text-xs leading-relaxed text-zinc-400 dark:text-zinc-500">
+        <p className="mt-1.5 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
           Cell colors fill up toward this number per day. Leave empty to auto-scale to your own
           history.
         </p>

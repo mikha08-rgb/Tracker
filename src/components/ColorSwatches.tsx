@@ -1,15 +1,4 @@
-const PRESETS = [
-  '#22c55e', // green
-  '#14b8a6', // teal
-  '#0ea5e9', // sky
-  '#3b82f6', // blue
-  '#8b5cf6', // violet
-  '#ec4899', // pink
-  '#f43f5e', // rose
-  '#f97316', // orange
-  '#f59e0b', // amber
-  '#84cc16', // lime
-]
+import { PRESET_NAMES, PRESETS } from '../lib/colors'
 
 interface ColorSwatchesProps {
   value: string
@@ -27,7 +16,8 @@ export function ColorSwatches({ value, onChange }: ColorSwatchesProps) {
         <button
           key={color}
           type="button"
-          aria-label={`Color ${color}`}
+          aria-label={PRESET_NAMES[color]}
+          title={PRESET_NAMES[color]}
           aria-pressed={value === color}
           onClick={() => onChange(color)}
           className={`size-7 rounded-full transition-transform hover:scale-110 ${

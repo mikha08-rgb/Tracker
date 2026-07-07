@@ -2,11 +2,11 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useMemo, useState } from 'react'
 import { adjustCount, getEntriesForHabit, getEntriesForYear } from '../data/repo'
 import type { Habit } from '../data/types'
-import type { ISODate, WeekStart } from '../lib/dates'
+import { yearOf, type ISODate, type WeekStart } from '../lib/dates'
 import { buildYearGrid, computeThresholds } from '../lib/heatmap'
 import { DayPopover } from './DayPopover'
 import { Heatmap, type DayInfo } from './Heatmap'
-import { PencilIcon, PlusIcon } from './icons'
+import { CheckIcon, PencilIcon, PlusIcon } from './icons'
 
 interface HabitCardProps {
   habit: Habit
@@ -18,6 +18,8 @@ interface HabitCardProps {
 
 export function HabitCard({ habit, year, weekStart, today, onEdit }: HabitCardProps) {
   const [selected, setSelected] = useState<{ date: ISODate; anchor: HTMLElement } | null>(null)
+  // Screen-reader echo of card-button logs; aria-label changes alone are silent.
+  const [announcement, setAnnouncement] = useState('')
   const entries = useLiveQuery(() => getEntriesForYear(habit.id, year), [habit.id, year])
   const history = useLiveQuery(() => getEntriesForHabit(habit.id), [habit.id])
 
@@ -38,6 +40,17 @@ export function HabitCard({ habit, year, weekStart, today, onEdit }: HabitCardPr
 
   const yearTotal = useMemo(() => (entries ?? []).reduce((sum, e) => sum + e.count, 0), [entries])
 
+  const todayCount = useMemo(
+    () => (history ?? []).find((e) => e.date === today)?.count ?? 0,
+    [history, today],
+  )
+  const currentYear = yearOf(today)
+  const isCurrentYear = year === currentYear
+  const logLabel =
+    todayCount > 0
+      ? `Log ${habit.name} again today (${todayCount} so far)`
+      : `Log ${habit.name} today`
+
   return (
     <section
       aria-label={habit.name}
@@ -54,7 +67,7 @@ export function HabitCard({ habit, year, weekStart, today, onEdit }: HabitCardPr
           />
         )}
         <h2 className="truncate text-sm font-semibold">{habit.name}</h2>
-        <span className="shrink-0 text-xs text-zinc-400 tabular-nums dark:text-zinc-500">
+        <span className="shrink-0 text-xs text-zinc-500 tabular-nums dark:text-zinc-400">
           {yearTotal} in {year}
         </span>
         <div className="grow" />
@@ -68,14 +81,33 @@ export function HabitCard({ habit, year, weekStart, today, onEdit }: HabitCardPr
         </button>
         <button
           type="button"
-          onClick={() => void adjustCount(habit.id, today, 1)}
-          aria-label={`Log ${habit.name} today`}
-          title="Log today"
-          className="flex size-8 items-center justify-center rounded-full text-white shadow-sm transition-transform hover:brightness-110 active:scale-90"
+          onClick={() => {
+            void adjustCount(habit.id, today, 1)
+            setAnnouncement(`${habit.name}: ${todayCount + 1} logged today`)
+          }}
+          disabled={!isCurrentYear}
+          aria-label={isCurrentYear ? logLabel : `${logLabel} — today is in ${currentYear}`}
+          title={
+            !isCurrentYear
+              ? `Today is in ${currentYear}`
+              : todayCount > 0
+                ? `${todayCount} logged today — add another`
+                : 'Log today'
+          }
+          className="flex size-10 items-center justify-center rounded-full text-white shadow-sm transition-transform hover:brightness-110 active:scale-90 disabled:opacity-40 disabled:hover:brightness-100 disabled:active:scale-100 sm:size-8"
           style={{ backgroundColor: habit.color }}
         >
-          <PlusIcon />
+          {todayCount === 0 ? (
+            <PlusIcon />
+          ) : todayCount === 1 ? (
+            <CheckIcon />
+          ) : (
+            <span className="text-sm font-semibold tabular-nums">{todayCount}</span>
+          )}
         </button>
+        <span aria-live="polite" className="sr-only">
+          {announcement}
+        </span>
       </div>
 
       <Heatmap

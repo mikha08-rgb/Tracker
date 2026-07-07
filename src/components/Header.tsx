@@ -80,6 +80,9 @@ export function Header({
         <button
           type="button"
           onClick={onNewHabit}
+          // The visible label is display:none below `sm`, which drops it
+          // from the accessible name too.
+          aria-label="New habit"
           className="ml-1 inline-flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
         >
           <PlusIcon />

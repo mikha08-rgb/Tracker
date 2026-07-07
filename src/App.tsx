@@ -8,6 +8,7 @@ import { SettingsDialog } from './components/SettingsDialog'
 import { getHabits, getSetting, getYearBounds } from './data/repo'
 import { useTheme } from './hooks/useTheme'
 import { useToday } from './hooks/useToday'
+import { nextUnusedPreset } from './lib/colors'
 import { yearOf } from './lib/dates'
 
 export default function App() {
@@ -22,7 +23,9 @@ export default function App() {
   const weekStart = useLiveQuery(() => getSetting('weekStart')) ?? 'mon'
   const bounds = useLiveQuery(getYearBounds)
 
-  const minYear = Math.min(bounds?.minYear ?? currentYear, currentYear)
+  // One year below the earliest data stays reachable so history can be
+  // backfilled — logging there extends the range another year back.
+  const minYear = Math.min(bounds?.minYear ?? currentYear, currentYear) - 1
   const maxYear = Math.max(bounds?.maxYear ?? currentYear, currentYear)
 
   return (
@@ -58,7 +61,11 @@ export default function App() {
           ))}
       </main>
 
-      <HabitDialog state={dialog} onClose={() => setDialog(null)} />
+      <HabitDialog
+        state={dialog}
+        defaultColor={nextUnusedPreset((habits ?? []).map((h) => h.color))}
+        onClose={() => setDialog(null)}
+      />
       <SettingsDialog
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}

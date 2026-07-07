@@ -23,6 +23,14 @@ export function PlusIcon({ className }: IconProps) {
   )
 }
 
+export function CheckIcon({ className }: IconProps) {
+  return (
+    <svg {...base(className)}>
+      <path d="m3.25 8.5 3.25 3 6.25-7" />
+    </svg>
+  )
+}
+
 export function MinusIcon({ className }: IconProps) {
   return (
     <svg {...base(className)}>

@@ -19,8 +19,36 @@ const POPOVER_WIDTH = 272
 
 export function DayPopover({ habit, date, anchor, onClose }: DayPopoverProps) {
   const isSheet = useMediaQuery('(max-width: 639px)')
+  const boxRef = useRef<HTMLDivElement>(null)
   const entry = useLiveQuery(() => getEntry(habit.id, date), [habit.id, date])
   const count = entry?.count ?? 0
+
+  // Hand-rolled dialog, so it must do what <dialog> does for free: focus
+  // moves in on open and returns to the opening cell on close.
+  useEffect(() => {
+    boxRef.current?.focus()
+    return () => anchor.focus()
+  }, [anchor])
+
+  function trapTab(e: React.KeyboardEvent) {
+    if (e.key !== 'Tab') return
+    const focusables = boxRef.current?.querySelectorAll<HTMLElement>(
+      'button:not(:disabled), textarea',
+    )
+    if (!focusables?.length) return
+    const first = focusables[0]
+    const last = focusables[focusables.length - 1]
+    if (
+      e.shiftKey &&
+      (document.activeElement === first || document.activeElement === boxRef.current)
+    ) {
+      e.preventDefault()
+      last.focus()
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault()
+      first.focus()
+    }
+  }
 
   // The note is edited locally and autosaved (debounced); the entry's
   // stored note only seeds the field, so a slow liveQuery can't clobber
@@ -66,7 +94,7 @@ export function DayPopover({ habit, date, anchor, onClose }: DayPopoverProps) {
     const margin = POPOVER_WIDTH / 2 + 8
     const left = Math.min(Math.max(centerX, margin), window.innerWidth - margin + window.scrollX)
     // Prefer above the cell; flip below when it would leave the viewport.
-    const flip = rect.top < 230
+    const flip = rect.top < 250
     return {
       left,
       top: flip ? rect.bottom + window.scrollY + 8 : rect.top + window.scrollY - 8,
@@ -76,15 +104,21 @@ export function DayPopover({ habit, date, anchor, onClose }: DayPopoverProps) {
 
   const body = (
     <>
-      <div className="flex items-center justify-between gap-3">
-        <h3 className="text-sm font-medium">
-          {formatDate(date, { weekday: 'short', month: 'long', day: 'numeric' })}
-        </h3>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="truncate text-sm font-medium">
+            {habit.emoji ? `${habit.emoji} ` : ''}
+            {habit.name}
+          </h3>
+          <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+            {formatDate(date, { weekday: 'short', month: 'long', day: 'numeric' })}
+          </p>
+        </div>
         <button
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+          className="-m-2 shrink-0 rounded-md p-3 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 sm:m-0 sm:p-1 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
         >
           <CloseIcon />
         </button>
@@ -131,10 +165,14 @@ export function DayPopover({ habit, date, anchor, onClose }: DayPopoverProps) {
     return createPortal(
       <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose}>
         <div
+          ref={boxRef}
           role="dialog"
+          aria-modal="true"
           aria-label={`${habit.name} on ${formatDate(date)}`}
+          tabIndex={-1}
           onClick={(e) => e.stopPropagation()}
-          className="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl border-t border-zinc-200 bg-white p-5 pb-8 dark:border-zinc-800 dark:bg-zinc-900"
+          onKeyDown={trapTab}
+          className="fixed inset-x-0 bottom-0 z-50 rounded-t-2xl border-t border-zinc-200 bg-white p-5 pb-[max(2rem,env(safe-area-inset-bottom))] outline-none dark:border-zinc-800 dark:bg-zinc-900"
         >
           {body}
         </div>
@@ -149,9 +187,13 @@ export function DayPopover({ habit, date, anchor, onClose }: DayPopoverProps) {
           from falling through to whatever sits under the pointer. */}
       <div className="fixed inset-0 z-40" onClick={onClose} />
       <div
+        ref={boxRef}
         role="dialog"
+        aria-modal="true"
         aria-label={`${habit.name} on ${formatDate(date)}`}
-        className={`absolute z-50 -translate-x-1/2 rounded-xl border border-zinc-200 bg-white p-4 shadow-lg dark:border-zinc-700 dark:bg-zinc-900 ${
+        tabIndex={-1}
+        onKeyDown={trapTab}
+        className={`absolute z-50 -translate-x-1/2 rounded-xl border border-zinc-200 bg-white p-4 shadow-lg outline-none dark:border-zinc-700 dark:bg-zinc-900 ${
           position?.flip ? '' : '-translate-y-full'
         }`}
         style={{ left: position?.left, top: position?.top, width: POPOVER_WIDTH }}
