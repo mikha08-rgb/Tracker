@@ -77,6 +77,24 @@ export const Heatmap = memo(function Heatmap({
     })
   }
 
+  // Arrow keys walk the calendar: the grid is column-major, so a week
+  // is one column over and a day is one row down.
+  function handleKeyDown(e: React.KeyboardEvent) {
+    const deltas: Record<string, number> = {
+      ArrowLeft: -7,
+      ArrowRight: 7,
+      ArrowUp: -1,
+      ArrowDown: 1,
+    }
+    const delta = deltas[e.key]
+    if (delta === undefined) return
+    const cell = (e.target as HTMLElement).closest<HTMLButtonElement>('button[data-date]')
+    if (!cell) return
+    e.preventDefault()
+    const target = addDays(cell.dataset.date as ISODate, delta)
+    contentRef.current?.querySelector<HTMLButtonElement>(`button[data-date="${target}"]`)?.focus()
+  }
+
   const tooltipInfo = tooltip ? (days.get(tooltip.date) ?? EMPTY) : EMPTY
 
   return (
@@ -116,6 +134,7 @@ export const Heatmap = memo(function Heatmap({
 
           <div
             className="grid grid-flow-col"
+            onKeyDown={handleKeyDown}
             style={{
               gridTemplateRows: `repeat(7, ${CELL}px)`,
               gridAutoColumns: CELL,
@@ -135,6 +154,7 @@ export const Heatmap = memo(function Heatmap({
                     type="button"
                     data-date={date}
                     tabIndex={isToday ? 0 : -1}
+                    aria-current={isToday ? 'date' : undefined}
                     disabled={isFuture}
                     onClick={onSelectDay ? (e) => onSelectDay(date, e.currentTarget) : undefined}
                     aria-label={`${formatDate(date)}: ${

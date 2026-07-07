@@ -44,7 +44,10 @@ export function EmptyState({ onCreate }: EmptyStateProps) {
         account, no streaks, no cloud — your data never leaves this device.
       </p>
 
-      <div className="pointer-events-none mt-8 select-none rounded-xl border border-zinc-200 bg-white p-4 opacity-80 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+      <div
+        inert
+        className="pointer-events-none mt-8 select-none rounded-xl border border-zinc-200 bg-white p-4 opacity-80 shadow-sm dark:border-zinc-800 dark:bg-zinc-900"
+      >
         <Heatmap
           grid={grid}
           days={days}

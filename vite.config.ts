@@ -18,8 +18,8 @@ export default defineConfig({
         short_name: 'Tessera',
         description: 'A quiet, local-first habit tracker — one heatmap per habit.',
         display: 'standalone',
-        start_url: '/',
-        scope: '/',
+        // start_url and scope are omitted on purpose: the plugin derives
+        // them from Vite's `base`, which keeps subpath deploys working.
         theme_color: '#09090b',
         background_color: '#09090b',
         icons: [

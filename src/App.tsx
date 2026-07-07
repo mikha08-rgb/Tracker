@@ -7,10 +7,11 @@ import { Header } from './components/Header'
 import { SettingsDialog } from './components/SettingsDialog'
 import { getHabits, getSetting, getYearBounds } from './data/repo'
 import { useTheme } from './hooks/useTheme'
-import { todayISO, yearOf } from './lib/dates'
+import { useToday } from './hooks/useToday'
+import { yearOf } from './lib/dates'
 
 export default function App() {
-  const today = todayISO()
+  const today = useToday()
   const currentYear = yearOf(today)
   const [year, setYear] = useState(currentYear)
   const [dialog, setDialog] = useState<HabitDialogState>(null)
