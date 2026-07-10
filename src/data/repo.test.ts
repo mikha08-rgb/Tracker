@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from './db'
 import {
   adjustCount,
+  applyImport,
   createHabit,
   deleteHabit,
   getEntriesForHabit,
@@ -78,6 +79,13 @@ describe('adjustCount', () => {
     await adjustCount(habit.id, '2026-07-06', 1)
     await adjustCount(habit.id, '2026-07-06', -5)
     expect(await getEntriesForHabit(habit.id)).toHaveLength(0)
+  })
+
+  it('resolves to the count it wrote', async () => {
+    const habit = await createHabit(input)
+    expect(await adjustCount(habit.id, '2026-07-06', 1)).toBe(1)
+    expect(await adjustCount(habit.id, '2026-07-06', 1)).toBe(2)
+    expect(await adjustCount(habit.id, '2026-07-06', -5)).toBe(0)
   })
 
   it('decrementing to zero keeps the row when a note exists', async () => {
@@ -191,5 +199,23 @@ describe('snapshot / replaceAll', () => {
     const habits = await getHabits()
     expect(habits.map((h) => h.name)).toEqual(['Old'])
     expect(await getEntriesForHabit(fresh.id)).toHaveLength(0)
+  })
+})
+
+describe('applyImport', () => {
+  it('replaces the database and records the backup file’s export time', async () => {
+    await createHabit(input)
+    const snapshot = await getSnapshot()
+
+    await applyImport(snapshot, '2026-07-01T00:00:00.000Z')
+
+    expect((await getHabits()).map((h) => h.name)).toEqual(['Read'])
+    expect(await getSetting('lastExportAt')).toBe('2026-07-01T00:00:00.000Z')
+  })
+
+  it('leaves lastExportAt unset when the file carries no export time', async () => {
+    await setSetting('lastExportAt', '2026-01-01T00:00:00.000Z')
+    await applyImport({ habits: [], entries: [], settings: [] }, '')
+    expect(await getSetting('lastExportAt')).toBeUndefined()
   })
 })

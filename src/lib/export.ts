@@ -156,11 +156,21 @@ export function validateImport(input: unknown): ImportResult | { error: string }
     if (duplicates > 0) warnings.push(`merged ${duplicates} duplicate day entries (kept the last)`)
     if (empty > 0) warnings.push(`dropped ${empty} empty entries`)
 
+    // exportedAt feeds relative-time rendering in the UI, where a date
+    // string Date can't parse would throw during render — drop it instead.
+    const exportedAt =
+      typeof raw.exportedAt === 'string' && Number.isFinite(new Date(raw.exportedAt).getTime())
+        ? raw.exportedAt
+        : ''
+    if (exportedAt === '' && raw.exportedAt !== undefined && raw.exportedAt !== '') {
+      warnings.push("ignored the file's export date (unreadable)")
+    }
+
     const settings: Snapshot['settings'] = []
     const file: ExportFile = {
       app: 'tessera',
       schemaVersion: SCHEMA_VERSION,
-      exportedAt: typeof raw.exportedAt === 'string' ? raw.exportedAt : '',
+      exportedAt,
       settings: {},
       habits,
       entries: [...byKey.values()],

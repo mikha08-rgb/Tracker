@@ -9,6 +9,8 @@ function renderHeatmap(overrides: Partial<Parameters<typeof Heatmap>[0]> = {}) {
   const days = new Map<string, DayInfo>([
     ['2026-07-01', { count: 3, hasNote: false }],
     ['2026-07-02', { count: 1, hasNote: true }],
+    // Future data — reachable via imported backups or timezone travel.
+    ['2026-12-25', { count: 2, hasNote: false }],
   ])
   return render(
     <Heatmap
@@ -44,10 +46,24 @@ describe('Heatmap', () => {
     expect(empty.style.backgroundColor).toBe('')
   })
 
-  it('disables future days', () => {
-    renderHeatmap()
+  it('locks empty future days without removing them from keyboard reach', async () => {
+    const onSelectDay = vi.fn()
+    renderHeatmap({ onSelectDay })
     const future = screen.getByRole('button', { name: /Dec 31:/ })
-    expect(future).toHaveProperty('disabled', true)
+    // aria-disabled (not disabled) keeps the cell focusable so arrow-key
+    // traversal can cross it; activating it must still do nothing.
+    expect(future.getAttribute('aria-disabled')).toBe('true')
+    await userEvent.click(future)
+    expect(onSelectDay).not.toHaveBeenCalled()
+  })
+
+  it('keeps future days that hold data clickable', async () => {
+    const onSelectDay = vi.fn()
+    renderHeatmap({ onSelectDay })
+    const future = screen.getByRole('button', { name: /Dec 25:/ })
+    expect(future.getAttribute('aria-disabled')).toBeNull()
+    await userEvent.click(future)
+    expect(onSelectDay).toHaveBeenCalledWith('2026-12-25', expect.anything())
   })
 
   it('only today is in the tab order', () => {
@@ -55,6 +71,13 @@ describe('Heatmap', () => {
     const tabbable = screen.getAllByRole('button').filter((b) => b.getAttribute('tabindex') === '0')
     expect(tabbable).toHaveLength(1)
     expect(tabbable[0].getAttribute('data-date')).toBe('2026-07-06')
+  })
+
+  it('falls back to the first day as tab stop when today is outside the year', () => {
+    renderHeatmap({ grid: buildYearGrid(2025, 'mon') })
+    const tabbable = screen.getAllByRole('button').filter((b) => b.getAttribute('tabindex') === '0')
+    expect(tabbable).toHaveLength(1)
+    expect(tabbable[0].getAttribute('data-date')).toBe('2025-01-01')
   })
 
   it('reports the clicked day', async () => {

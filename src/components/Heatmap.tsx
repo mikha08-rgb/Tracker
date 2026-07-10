@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { addDays, formatDate, yearOf, type ISODate } from '../lib/dates'
 import { cellColor, levelFor, type Thresholds, type YearGrid } from '../lib/heatmap'
 
@@ -107,6 +107,15 @@ export const Heatmap = memo(function Heatmap({
     contentRef.current?.querySelector<HTMLButtonElement>(`button[data-date="${target}"]`)?.focus()
   }
 
+  // The keyboard entry point into the grid. Today when visible; on other
+  // years, fall back to the first reachable cell so past years never
+  // become keyboard-inaccessible.
+  const tabStopDate = useMemo(() => {
+    if (grid.year === yearOf(today)) return today
+    const dates = grid.weeks.flat().filter((d): d is ISODate => d !== null)
+    return dates.find((d) => d <= today || days.has(d)) ?? dates[0]
+  }, [grid, today, days])
+
   const tooltipInfo = tooltip ? (days.get(tooltip.date) ?? EMPTY) : EMPTY
 
   return (
@@ -162,15 +171,26 @@ export const Heatmap = memo(function Heatmap({
                 const level = levelFor(info.count, targetPerDay, thresholds)
                 const isToday = date === today
                 const isFuture = date > today
+                // Future days with data (imported backups, timezone travel)
+                // stay editable — only empty future days are locked.
+                const isLocked = isFuture && info.count === 0 && !info.hasNote
                 return (
                   <button
                     key={date}
                     type="button"
                     data-date={date}
-                    tabIndex={isToday ? 0 : -1}
+                    tabIndex={date === tabStopDate ? 0 : -1}
                     aria-current={isToday ? 'date' : undefined}
-                    disabled={isFuture}
-                    onClick={onSelectDay ? (e) => onSelectDay(date, e.currentTarget) : undefined}
+                    // aria-disabled, not disabled: locked cells must stay
+                    // focusable so arrow keys can traverse empty future days
+                    // to reach an unlocked one, and so a closing popover can
+                    // restore focus to a cell that locked while it was open.
+                    aria-disabled={isLocked || undefined}
+                    onClick={
+                      onSelectDay && !isLocked
+                        ? (e) => onSelectDay(date, e.currentTarget)
+                        : undefined
+                    }
                     aria-label={`${formatDate(date)}: ${
                       info.count === 0 ? 'nothing logged' : `logged ${info.count}×`
                     }${info.hasNote ? ', has note' : ''}`}
@@ -180,7 +200,7 @@ export const Heatmap = memo(function Heatmap({
                     className={[
                       'relative flex rounded-[2px] after:absolute after:-inset-[1.5px] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-500',
                       level === 0 ? 'bg-zinc-200/70 dark:bg-zinc-800' : '',
-                      isFuture ? 'opacity-30' : '',
+                      isLocked ? 'opacity-30' : isFuture ? 'opacity-70' : '',
                       isToday
                         ? 'outline-1 outline-offset-1 outline-zinc-500 dark:outline-zinc-400'
                         : '',

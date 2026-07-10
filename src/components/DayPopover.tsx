@@ -20,7 +20,15 @@ const POPOVER_WIDTH = 272
 export function DayPopover({ habit, date, anchor, onClose }: DayPopoverProps) {
   const isSheet = useMediaQuery('(max-width: 639px)')
   const boxRef = useRef<HTMLDivElement>(null)
-  const entry = useLiveQuery(() => getEntry(habit.id, date), [habit.id, date])
+  // Sheet-only: a drag that starts in the note textarea and releases on
+  // the dimmed backdrop retargets its click to the backdrop, which would
+  // dismiss mid-edit — same press-must-start-here rule as the dialogs.
+  const pressedOnBackdrop = useRef(false)
+  // null = loaded-but-no-row; undefined = still loading. The distinction
+  // gates the note field: editing before the stored note arrives would
+  // seed the draft from the empty placeholder and overwrite it.
+  const entry = useLiveQuery(async () => (await getEntry(habit.id, date)) ?? null, [habit.id, date])
+  const loaded = entry !== undefined
   const count = entry?.count ?? 0
 
   // Hand-rolled dialog, so it must do what <dialog> does for free: focus
@@ -33,7 +41,7 @@ export function DayPopover({ habit, date, anchor, onClose }: DayPopoverProps) {
   function trapTab(e: React.KeyboardEvent) {
     if (e.key !== 'Tab') return
     const focusables = boxRef.current?.querySelectorAll<HTMLElement>(
-      'button:not(:disabled), textarea',
+      'button:not(:disabled), textarea:not(:disabled)',
     )
     if (!focusables?.length) return
     const first = focusables[0]
@@ -69,13 +77,25 @@ export function DayPopover({ habit, date, anchor, onClose }: DayPopoverProps) {
     }
   }
 
-  // Flush an unsaved draft when the popover closes.
+  // Flush an unsaved draft when the popover closes — and on pagehide /
+  // app-switch, since React runs no cleanup when the tab or PWA is killed.
   useEffect(() => {
-    return () => {
+    function flush() {
       if (pending.current) {
         clearTimeout(pending.current.timer)
         void setNote(habit.id, date, pending.current.value)
+        pending.current = null
       }
+    }
+    function onVisibilityChange() {
+      if (document.visibilityState === 'hidden') flush()
+    }
+    window.addEventListener('pagehide', flush)
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    return () => {
+      window.removeEventListener('pagehide', flush)
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      flush()
     }
   }, [habit.id, date])
 
@@ -127,10 +147,14 @@ export function DayPopover({ habit, date, anchor, onClose }: DayPopoverProps) {
       <div className="mt-3 flex items-center justify-center gap-5">
         <button
           type="button"
-          onClick={() => void adjustCount(habit.id, date, -1)}
-          disabled={count === 0}
+          // aria-disabled, not disabled: hard-disabling at 0 while this
+          // button holds focus would kick focus to <body>, out of the trap.
+          onClick={() => {
+            if (count > 0) void adjustCount(habit.id, date, -1)
+          }}
+          aria-disabled={count === 0 || undefined}
           aria-label="Decrease count"
-          className="flex size-10 items-center justify-center rounded-full border border-zinc-300 text-zinc-600 hover:bg-zinc-100 disabled:opacity-30 disabled:hover:bg-transparent dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+          className="flex size-10 items-center justify-center rounded-full border border-zinc-300 text-zinc-600 hover:bg-zinc-100 aria-disabled:opacity-30 aria-disabled:hover:bg-transparent dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
         >
           <MinusIcon />
         </button>
@@ -154,6 +178,7 @@ export function DayPopover({ habit, date, anchor, onClose }: DayPopoverProps) {
       <textarea
         value={note}
         onChange={(e) => handleNoteChange(e.target.value)}
+        disabled={!loaded}
         placeholder="Add a note…"
         rows={2}
         className="mt-4 w-full resize-none rounded-lg border border-zinc-300 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-zinc-400 focus:border-zinc-500 dark:border-zinc-700 dark:focus:border-zinc-400"
@@ -163,7 +188,15 @@ export function DayPopover({ habit, date, anchor, onClose }: DayPopoverProps) {
 
   if (isSheet) {
     return createPortal(
-      <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose}>
+      <div
+        className="fixed inset-0 z-40 bg-black/40"
+        onMouseDown={(e) => {
+          pressedOnBackdrop.current = e.target === e.currentTarget
+        }}
+        onClick={(e) => {
+          if (e.target === e.currentTarget && pressedOnBackdrop.current) onClose()
+        }}
+      >
         <div
           ref={boxRef}
           role="dialog"

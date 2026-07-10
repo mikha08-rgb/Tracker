@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useMemo, useState } from 'react'
+import { memo, useCallback, useMemo, useRef, useState } from 'react'
 import { adjustCount, getEntriesForHabit, getEntriesForYear } from '../data/repo'
 import type { Habit } from '../data/types'
 import { yearOf, type ISODate, type WeekStart } from '../lib/dates'
@@ -16,10 +16,20 @@ interface HabitCardProps {
   onEdit: (habit: Habit) => void
 }
 
-export function HabitCard({ habit, year, weekStart, today, onEdit }: HabitCardProps) {
+// memo matters here: an entries write anywhere re-renders App (the year
+// bounds re-emit), and without it every card would rebuild its ~366-cell
+// grid. All props are stable across unrelated writes.
+export const HabitCard = memo(function HabitCard({
+  habit,
+  year,
+  weekStart,
+  today,
+  onEdit,
+}: HabitCardProps) {
   const [selected, setSelected] = useState<{ date: ISODate; anchor: HTMLElement } | null>(null)
   // Screen-reader echo of card-button logs; aria-label changes alone are silent.
   const [announcement, setAnnouncement] = useState('')
+  const lastAnnounced = useRef('')
   const entries = useLiveQuery(() => getEntriesForYear(habit.id, year), [habit.id, year])
   const history = useLiveQuery(() => getEntriesForHabit(habit.id), [habit.id])
 
@@ -46,6 +56,12 @@ export function HabitCard({ habit, year, weekStart, today, onEdit }: HabitCardPr
   )
   const currentYear = yearOf(today)
   const isCurrentYear = year === currentYear
+
+  // Stable identity so Heatmap's memo isn't defeated by a fresh closure.
+  const handleSelectDay = useCallback(
+    (date: ISODate, anchor: HTMLElement) => setSelected({ date, anchor }),
+    [],
+  )
   const logLabel =
     todayCount > 0
       ? `Log ${habit.name} again today (${todayCount} so far)`
@@ -82,8 +98,17 @@ export function HabitCard({ habit, year, weekStart, today, onEdit }: HabitCardPr
         <button
           type="button"
           onClick={() => {
-            void adjustCount(habit.id, today, 1)
-            setAnnouncement(`${habit.name}: ${todayCount + 1} logged today`)
+            // Announce the count the write actually produced — todayCount
+            // lags the database by one liveQuery emit on rapid taps.
+            void adjustCount(habit.id, today, 1).then((count) => {
+              // aria-live fires only when the text mutates; re-logging after
+              // an undo recomputes the same string, so nudge it apart
+              // invisibly.
+              let message = `${habit.name}: ${count} logged today`
+              if (message === lastAnnounced.current) message += '​'
+              lastAnnounced.current = message
+              setAnnouncement(message)
+            })
           }}
           disabled={!isCurrentYear}
           aria-label={isCurrentYear ? logLabel : `${logLabel} — today is in ${currentYear}`}
@@ -97,9 +122,11 @@ export function HabitCard({ habit, year, weekStart, today, onEdit }: HabitCardPr
           className="flex size-10 items-center justify-center rounded-full text-white shadow-sm transition-transform hover:brightness-110 active:scale-90 disabled:opacity-40 disabled:hover:brightness-100 disabled:active:scale-100 sm:size-8"
           style={{ backgroundColor: habit.color }}
         >
+          {/* A check against a daily target would overstate one tap — the
+              count is the honest state for target habits. */}
           {todayCount === 0 ? (
             <PlusIcon />
-          ) : todayCount === 1 ? (
+          ) : todayCount === 1 && habit.targetPerDay === null ? (
             <CheckIcon />
           ) : (
             <span className="text-sm font-semibold tabular-nums">{todayCount}</span>
@@ -117,11 +144,14 @@ export function HabitCard({ habit, year, weekStart, today, onEdit }: HabitCardPr
         targetPerDay={habit.targetPerDay}
         thresholds={thresholds}
         today={today}
-        onSelectDay={(date, anchor) => setSelected({ date, anchor })}
+        onSelectDay={handleSelectDay}
       />
 
       {selected && (
         <DayPopover
+          // Keyed by date so a date change always remounts: draft note
+          // state must never carry over from one day to another.
+          key={selected.date}
           habit={habit}
           date={selected.date}
           anchor={selected.anchor}
@@ -130,4 +160,4 @@ export function HabitCard({ habit, year, weekStart, today, onEdit }: HabitCardPr
       )}
     </section>
   )
-}
+})

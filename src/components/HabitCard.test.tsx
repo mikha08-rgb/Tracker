@@ -1,5 +1,5 @@
 import 'fake-indexeddb/auto'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { db } from '../data/db'
@@ -71,6 +71,36 @@ describe('HabitCard today button', () => {
     const { container } = renderCard()
     await userEvent.click(await screen.findByRole('button', { name: 'Log Read today' }))
     const live = container.querySelector('[aria-live="polite"]')
-    expect(live?.textContent).toBe('Read: 1 logged today')
+    await waitFor(() => expect(live?.textContent).toBe('Read: 1 logged today'))
+  })
+
+  it('re-announces after an undo even though the message text repeats', async () => {
+    const { container } = renderCard()
+    await userEvent.click(await screen.findByRole('button', { name: 'Log Read today' }))
+    await screen.findByRole('button', { name: 'Log Read again today (1 so far)' })
+    await adjustCount('h1', '2026-07-06', -1)
+    await userEvent.click(await screen.findByRole('button', { name: 'Log Read today' }))
+    const live = container.querySelector('[aria-live="polite"]')
+    // Identical text would never mutate the DOM, so aria-live would stay
+    // silent; the zero-width-space nudge is what makes the announcement fire.
+    await waitFor(() => expect(live?.textContent).toBe('Read: 1 logged today​'))
+  })
+
+  it('announces the written total even when taps outrun the live query', async () => {
+    const { container } = renderCard()
+    const button = await screen.findByRole('button', { name: 'Log Read today' })
+    // Two clicks before any query re-emits: the stale local count would
+    // say "1" twice; the announcement must reflect the real total.
+    fireEvent.click(button)
+    fireEvent.click(button)
+    const live = container.querySelector('[aria-live="polite"]')
+    await waitFor(() => expect(live?.textContent).toBe('Read: 2 logged today'))
+  })
+
+  it('shows the count instead of a check when the habit has a daily target', async () => {
+    await adjustCount('h1', '2026-07-06', 1)
+    renderCard({ habit: { ...habit, targetPerDay: 8 } })
+    const button = await screen.findByRole('button', { name: 'Log Read again today (1 so far)' })
+    expect(button.textContent).toBe('1')
   })
 })

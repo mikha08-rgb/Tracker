@@ -36,7 +36,8 @@ come together, one small square at a time.
 
 ## Using Tessera
 
-- **Log today** with the big colored **+** on each habit card.
+- **Log today** with the big colored **+** on each habit card — it becomes a check (or your
+  count) once you've logged, and tapping again adds another.
 - **Any other day**: click its cell — a popover lets you adjust the count and write a note.
 - **Keyboard**: `Tab` to today's cell, arrow keys to move between days, `Enter` to open.
 - **Years**: switch with the ‹ › arrows in the header.

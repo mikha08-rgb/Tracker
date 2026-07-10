@@ -15,6 +15,10 @@ interface HabitDialogProps {
 
 export function HabitDialog({ state, defaultColor, onClose }: HabitDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
+  // Backdrop close requires the press to START on the backdrop: a drag
+  // that begins inside an input and releases outside would otherwise
+  // dispatch its click on the <dialog> and silently discard the form.
+  const pressedOnBackdrop = useRef(false)
   const open = state !== null
 
   useEffect(() => {
@@ -28,8 +32,11 @@ export function HabitDialog({ state, defaultColor, onClose }: HabitDialogProps) 
     <dialog
       ref={dialogRef}
       onClose={onClose}
+      onMouseDown={(e) => {
+        pressedOnBackdrop.current = e.target === dialogRef.current
+      }}
       onClick={(e) => {
-        if (e.target === dialogRef.current) onClose()
+        if (e.target === dialogRef.current && pressedOnBackdrop.current) onClose()
       }}
       className="m-auto w-[26rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-zinc-200 bg-white p-0 text-zinc-900 shadow-xl backdrop:bg-black/40 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
     >

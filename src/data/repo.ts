@@ -47,35 +47,38 @@ export async function deleteHabit(id: string): Promise<void> {
 }
 
 /**
- * Adds `delta` to the day's count (clamped at 0). Creates the row when
- * needed and deletes it when count and note are both empty.
+ * The single write path for day entries, enforcing the row lifecycle:
+ * a row exists only while count > 0 || note !== ''.
  */
-export async function adjustCount(habitId: string, date: ISODate, delta: number): Promise<void> {
-  await db.transaction('rw', db.entries, async () => {
-    const key: [string, string] = [habitId, date]
-    const existing = await db.entries.get(key)
+async function putOrDeleteEntry(
+  habitId: string,
+  date: ISODate,
+  count: number,
+  note: string,
+): Promise<void> {
+  if (count === 0 && note === '') {
+    await db.entries.delete([habitId, date])
+  } else {
+    await db.entries.put({ habitId, date, count, note })
+  }
+}
+
+/** Adds `delta` to the day's count (clamped at 0). Resolves to the new count. */
+export function adjustCount(habitId: string, date: ISODate, delta: number): Promise<number> {
+  return db.transaction('rw', db.entries, async () => {
+    const existing = await db.entries.get([habitId, date])
     const count = Math.max(0, (existing?.count ?? 0) + delta)
-    const note = existing?.note ?? ''
-    if (count === 0 && note === '') {
-      if (existing) await db.entries.delete(key)
-    } else {
-      await db.entries.put({ habitId, date, count, note })
-    }
+    await putOrDeleteEntry(habitId, date, count, existing?.note ?? '')
+    return count
   })
 }
 
-/** Sets the day's note (trimmed). Same row lifecycle as adjustCount. */
+/** Sets the day's note (trimmed). */
 export async function setNote(habitId: string, date: ISODate, rawNote: string): Promise<void> {
   const note = rawNote.trim()
   await db.transaction('rw', db.entries, async () => {
-    const key: [string, string] = [habitId, date]
-    const existing = await db.entries.get(key)
-    const count = existing?.count ?? 0
-    if (count === 0 && note === '') {
-      if (existing) await db.entries.delete(key)
-    } else {
-      await db.entries.put({ habitId, date, count, note })
-    }
+    const existing = await db.entries.get([habitId, date])
+    await putOrDeleteEntry(habitId, date, existing?.count ?? 0, note)
   })
 }
 
@@ -104,11 +107,15 @@ export function getEntriesForHabit(habitId: string): Promise<DayEntry[]> {
 }
 
 /** Earliest and latest years that hold any data, for bounding the year switcher. */
-export async function getYearBounds(): Promise<{ minYear: number; maxYear: number } | null> {
-  const first = await db.entries.orderBy('date').first()
-  if (!first) return null
-  const last = await db.entries.orderBy('date').last()
-  return { minYear: yearOf(first.date), maxYear: yearOf(last!.date) }
+export function getYearBounds(): Promise<{ minYear: number; maxYear: number } | null> {
+  // One transaction so both reads see the same table state — otherwise a
+  // concurrent wipe between them yields first-without-last and a crash.
+  return db.transaction('r', db.entries, async () => {
+    const first = await db.entries.orderBy('date').first()
+    const last = await db.entries.orderBy('date').last()
+    if (!first || !last) return null
+    return { minYear: yearOf(first.date), maxYear: yearOf(last.date) }
+  })
 }
 
 export async function getSetting<K extends keyof SettingsMap>(
@@ -151,6 +158,17 @@ export async function replaceAll(snapshot: Snapshot): Promise<void> {
     await db.entries.bulkAdd(snapshot.entries)
     await db.settings.bulkPut(snapshot.settings)
   })
+}
+
+/**
+ * Restores a backup: replace everything, then record the file's own
+ * export time as lastExportAt — the database now holds exactly that
+ * file's content, so its export time is the honest "last export"
+ * (replaceAll just wiped the previous value with the rest of settings).
+ */
+export async function applyImport(snapshot: Snapshot, exportedAt: string): Promise<void> {
+  await replaceAll(snapshot)
+  if (exportedAt) await setSetting('lastExportAt', exportedAt)
 }
 
 export function wipeAll(): Promise<void> {

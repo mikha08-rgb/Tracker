@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useRef, useState } from 'react'
-import { getSetting, getSnapshot, replaceAll, setSetting, wipeAll } from '../data/repo'
+import { applyImport, getSetting, getSnapshot, setSetting, wipeAll } from '../data/repo'
 import type { Theme } from '../hooks/useTheme'
 import { todayISO, type WeekStart } from '../lib/dates'
 import { serialize, validateImport, type ImportResult } from '../lib/export'
@@ -22,6 +22,9 @@ export function SettingsDialog({
   weekStart,
 }: SettingsDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
+  // Same backdrop rule as HabitDialog: only close when the press also
+  // started on the backdrop, so drags out of inputs can't discard state.
+  const pressedOnBackdrop = useRef(false)
 
   useEffect(() => {
     const dialog = dialogRef.current
@@ -34,8 +37,11 @@ export function SettingsDialog({
     <dialog
       ref={dialogRef}
       onClose={onClose}
+      onMouseDown={(e) => {
+        pressedOnBackdrop.current = e.target === dialogRef.current
+      }}
       onClick={(e) => {
-        if (e.target === dialogRef.current) onClose()
+        if (e.target === dialogRef.current && pressedOnBackdrop.current) onClose()
       }}
       className="m-auto w-[26rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-zinc-200 bg-white p-0 text-zinc-900 shadow-xl backdrop:bg-black/40 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-100"
     >
@@ -114,7 +120,7 @@ function SettingsBody({
 
   async function confirmImport() {
     if (importState?.kind !== 'preview') return
-    await replaceAll(importState.result.snapshot)
+    await applyImport(importState.result.snapshot, importState.result.file.exportedAt)
     const importedTheme = importState.result.file.settings.theme
     if (importedTheme) onThemeChange(importedTheme)
     setImportState(null)
@@ -327,6 +333,9 @@ function formatBytes(bytes: number): string {
 
 function relativeDays(isoDateTime: string): string {
   const days = Math.round((Date.now() - new Date(isoDateTime).getTime()) / 86_400_000)
+  // validateImport drops unparseable dates, but this runs during render —
+  // never let a stray stored value reach format(), which throws on NaN.
+  if (!Number.isFinite(days)) return 'unknown'
   return new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' }).format(-days, 'day')
 }
 

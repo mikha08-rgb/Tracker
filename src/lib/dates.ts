@@ -86,6 +86,11 @@ export function monthOf(iso: ISODate): number {
   return Number(iso.slice(5, 7))
 }
 
+// Intl.DateTimeFormat construction is expensive (~tens of µs) and the
+// heatmap formats every cell's label; the app only ever uses a handful
+// of option sets, so formatters are cached for the page's lifetime.
+const formatterCache = new Map<string, Intl.DateTimeFormat>()
+
 /**
  * Locale-aware display formatting, e.g. "Mon, Jul 6". Formats in UTC on
  * purpose: the epoch-day timestamp is timezone-free, so this renders the
@@ -96,7 +101,11 @@ export function formatDate(
   options: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: 'numeric' },
   locale?: string,
 ): string {
-  return new Intl.DateTimeFormat(locale, { ...options, timeZone: 'UTC' }).format(
-    new Date(toEpochDay(iso) * MS_PER_DAY),
-  )
+  const key = `${locale ?? ''}|${JSON.stringify(options)}`
+  let formatter = formatterCache.get(key)
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat(locale, { ...options, timeZone: 'UTC' })
+    formatterCache.set(key, formatter)
+  }
+  return formatter.format(new Date(toEpochDay(iso) * MS_PER_DAY))
 }

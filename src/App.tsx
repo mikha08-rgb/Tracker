@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
+import type { Habit } from './data/types'
 import { EmptyState } from './components/EmptyState'
 import { HabitCard } from './components/HabitCard'
 import { HabitDialog, type HabitDialogState } from './components/HabitDialog'
@@ -28,6 +29,9 @@ export default function App() {
   const minYear = Math.min(bounds?.minYear ?? currentYear, currentYear) - 1
   const maxYear = Math.max(bounds?.maxYear ?? currentYear, currentYear)
 
+  // Stable identity keeps memo(HabitCard) effective across entries writes.
+  const openEdit = useCallback((habit: Habit) => setDialog({ mode: 'edit', habit }), [])
+
   return (
     <div className="min-h-dvh bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
       <Header
@@ -54,7 +58,7 @@ export default function App() {
                   year={year}
                   weekStart={weekStart}
                   today={today}
-                  onEdit={(h) => setDialog({ mode: 'edit', habit: h })}
+                  onEdit={openEdit}
                 />
               ))}
             </div>

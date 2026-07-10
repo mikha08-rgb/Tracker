@@ -109,6 +109,24 @@ describe('validateImport', () => {
     expect(validateImport(file)).toEqual({ error: 'habits contain duplicate ids' })
   })
 
+  it('drops an unreadable exportedAt with a warning instead of keeping it', () => {
+    // Kept as-is it would reach relative-time rendering and throw mid-render.
+    const file = { ...roundTrip(), exportedAt: 'yesterday' }
+    const result = validateImport(file)
+    if ('error' in result) throw new Error(result.error)
+    expect(result.file.exportedAt).toBe('')
+    expect(result.warnings).toEqual(["ignored the file's export date (unreadable)"])
+  })
+
+  it('tolerates a missing exportedAt silently', () => {
+    const file = roundTrip()
+    delete file.exportedAt
+    const result = validateImport(file)
+    if ('error' in result) throw new Error(result.error)
+    expect(result.file.exportedAt).toBe('')
+    expect(result.warnings).toEqual([])
+  })
+
   it('ignores unknown settings values', () => {
     const file = roundTrip()
     file.settings = { weekStart: 'someday', theme: 'neon', extra: true }
