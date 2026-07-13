@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon-180x180.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fafafa" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#09090b" />
+    <meta
+      name="description"
+      content="A quiet, local-first habit tracker. One heatmap per habit, and your data never leaves your browser."
+    />
+    <title>Tessera</title>
+    <script>
+      // Applies the saved theme before first paint so the page never flashes
+      // the wrong colors. The storage key must stay in sync with src/hooks/useTheme.ts.
+      ;(() => {
+        try {
+          const theme = localStorage.getItem('tessera-theme')
+          const dark =
+            theme === 'dark' ||
+            (theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches)
+          document.documentElement.classList.toggle('dark', dark)
+          if (theme === 'dark' || theme === 'light') {
+            // A forced theme overrides both media-scoped theme-color metas.
+            const color = theme === 'dark' ? '#09090b' : '#fafafa'
+            for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
+              meta.content = color
+            }
+          }
+        } catch {
+          // No localStorage (e.g. blocked storage) — leave the light default.
+        }
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
