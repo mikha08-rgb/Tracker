@@ -8,6 +8,9 @@ and your data never leaves your browser.
 
 [![CI](https://github.com/mikha08-rgb/Tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/mikha08-rgb/Tracker/actions/workflows/ci.yml)
 
+**[Try it live →](https://mikha08-rgb.github.io/Tracker/)**
+It's the real app, not a demo build — anything you log stays in your own browser.
+
 </div>
 
 <picture>
@@ -60,9 +63,9 @@ npm run build      # production build in dist/
 npm run preview    # serve the build (use this to test PWA/offline behavior)
 ```
 
-Requires Node 22+. A ready-made GitHub Pages workflow lives in
-[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) (manual trigger; enable
-Pages → GitHub Actions in the repo settings first).
+Requires Node 22+. The [live instance](https://mikha08-rgb.github.io/Tracker/) deploys via
+[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) — forks get the same setup by
+enabling Pages → GitHub Actions in the repo settings and running the workflow.
 
 Contributions welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
